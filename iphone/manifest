@@ -1,0 +1,18 @@
+#
+# this is your module manifest and used by Titanium
+# during compilation, packaging, distribution, etc.
+#
+version: 1.0.0
+apiversion: 2
+architectures: armv7 arm64 i386 x86_64
+description: Ti.GeoVisits access to iOS CLVisits in Titanium
+author: Benjamin Bahrenburg (bencoding)
+license: Apache 2.0
+copyright: Copyright (c) 2015 by Benjamin Bahrenburg (bencoding)
+
+# these should not be edited
+name: TiGeoVisits
+moduleid: ti.geovisits
+guid: 6a759615-bdfa-4134-ac91-dc7a039dd92a
+platform: iphone
+minsdk: 3.5.0.GA
