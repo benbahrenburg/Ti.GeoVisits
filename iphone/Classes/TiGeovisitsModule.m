@@ -38,9 +38,11 @@
 	// you *must* call the superclass
 	[super startup];
     
+    _isSupported = [TiUtils isIOS8OrGreater];
+    
     if ([[[TiApp app] launchOptions] objectForKey:UIApplicationLaunchOptionsLocationKey])
     {
-        
+        [self startMonitoringVisits:nil];
     }
 }
 
@@ -57,6 +59,8 @@
 
 #pragma mark Internal Memory Management
 
+
+
 -(void)didReceiveMemoryWarning:(NSNotification*)notification
 {
 	// optionally release any resources that can be dynamically
@@ -64,6 +68,24 @@
 	[super didReceiveMemoryWarning:notification];
 }
 
+-(NSNumber*)isSupported:(id)args
+{
+    ENSURE_UI_THREAD(isSupported,args);
+    return NUMBOOL(_isSupported);
+}
+
+-(NSNumber*)hasPermission:(id)args
+{
+    ENSURE_UI_THREAD(hasPermission,args);
+    return NUMBOOL([self authorized]);
+}
+
+-(bool) authorized
+{
+    CLAuthorizationStatus currentPermissionLevel = [CLLocationManager authorizationStatus];
+    return ((currentPermissionLevel == kCLAuthorizationStatusAuthorizedAlways) ||
+            (currentPermissionLevel == kCLAuthorizationStatusAuthorized));
+}
 - (void) requestPermission
 {
     if (_locationManager!=nil){
@@ -79,6 +101,16 @@
 {
     //We need to be on the UI thread, or the Change event wont fire
     ENSURE_UI_THREAD(startMonitoringVisits,args);
+    
+    if(_isSupported == NO){
+        NSLog(@"[ERROR] is not supported");
+        return;
+    }
+    
+    if([self authorized] == NO){
+        NSLog(@"[ERROR] does not have correct permissions");
+        return;
+    }
     
     if ([CLLocationManager locationServicesEnabled]== NO)
     {
@@ -97,7 +129,7 @@
         [self fireEvent:@"start" withObject:startEvent];
     }
     
-    [self rememberSelf];
+    //[self rememberSelf];
 }
 
 - (void) stopMonitoringVisits:(id)args
@@ -112,9 +144,7 @@
     if ([self _hasListeners:@"stop"])
     {
         [self fireEvent:@"stop" withObject:event];
-    }
-    
-    [self forgetSelf]; //Allow for the proxy to be cleaned up
+    }    
 }
 
 

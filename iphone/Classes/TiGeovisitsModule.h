@@ -14,6 +14,7 @@
 {
     @private
     CLLocationManager* _locationManager;
+    bool _isSupported;
 }
 
 @end
