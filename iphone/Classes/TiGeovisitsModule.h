@@ -13,8 +13,10 @@
 @interface TiGeovisitsModule : TiModule<CLLocationManagerDelegate>
 {
     @private
-    CLLocationManager* _locationManager;
     bool _isSupported;
+    bool _debug;
 }
+
+@property (nonatomic, strong) CLLocationManager * locManager;
 
 @end

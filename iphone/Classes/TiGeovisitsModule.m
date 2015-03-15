@@ -14,7 +14,10 @@
 #import "TiUtils.h"
 #import "TiApp.h"
 
+
 @implementation TiGeovisitsModule
+
+@synthesize locManager;
 
 #pragma mark Internal
 
@@ -38,20 +41,18 @@
 	// you *must* call the superclass
 	[super startup];
     
+    _debug = NO;
     _isSupported = [TiUtils isIOS8OrGreater];
     
     if ([[[TiApp app] launchOptions] objectForKey:UIApplicationLaunchOptionsLocationKey])
     {
         [self startMonitoringVisits:nil];
     }
+    
 }
 
 -(void)shutdown:(id)sender
 {
-	// this method is called when the module is being unloaded
-	// typically this is during shutdown. make sure you don't do too
-	// much processing here or the app will be quit forceably
-
 	// you *must* call the superclass
 	[super shutdown:sender];
 }
@@ -59,13 +60,20 @@
 
 #pragma mark Internal Memory Management
 
-
-
 -(void)didReceiveMemoryWarning:(NSNotification*)notification
 {
 	// optionally release any resources that can be dynamically
 	// reloaded once memory is available - such as caches
 	[super didReceiveMemoryWarning:notification];
+}
+
+#pragma mark Our public methods
+
+-(void)setDebug:(id)value
+{
+    ENSURE_UI_THREAD(setDebug, value);
+    ENSURE_TYPE(value, NSNumber);
+    _debug = [TiUtils boolValue:value];
 }
 
 -(NSNumber*)isSupported:(id)args
@@ -80,17 +88,18 @@
     return NUMBOOL([self authorized]);
 }
 
--(bool) authorized
+-(bool)authorized
 {
     CLAuthorizationStatus currentPermissionLevel = [CLLocationManager authorizationStatus];
     return ((currentPermissionLevel == kCLAuthorizationStatusAuthorizedAlways) ||
             (currentPermissionLevel == kCLAuthorizationStatusAuthorized));
 }
-- (void) requestPermission
+
+- (void)requestPermission
 {
-    if (_locationManager!=nil){
+    if (locManager!=nil){
         if([[NSBundle mainBundle] objectForInfoDictionaryKey:@"NSLocationAlwaysUsageDescription"]){
-            [_locationManager requestAlwaysAuthorization];
+            [locManager requestAlwaysAuthorization];
         }else{
             NSLog(@"[ERROR] The keys NSLocationAlwaysUsageDescription are not defined in your tiapp.xml.  Starting with iOS8 this is required.");
         }
@@ -150,36 +159,38 @@
 
 -(CLLocationManager*)locationManager
 {
-    if (_locationManager!=nil)
+    if (locManager!=nil)
     {
-        return _locationManager;
+        return locManager;
     }
     
-    if (_locationManager == nil) {
-        _locationManager = [[CLLocationManager alloc] init];
-        _locationManager.delegate = self;
-        _locationManager.pausesLocationUpdatesAutomatically = NO;
+    if (locManager == nil) {
+        locManager = [[CLLocationManager alloc] init];
+        locManager.delegate = self;
+        locManager.pausesLocationUpdatesAutomatically = NO;
         
         [self requestPermission];
         
         NSString * purpose = [TiUtils stringValue:[self valueForUndefinedKey:@"purpose"]];
         if(purpose!=nil){
             #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-            if ([_locationManager respondsToSelector:@selector(setPurpose)]) {
-                [_locationManager setPurpose:purpose];
+            if ([locManager respondsToSelector:@selector(setPurpose)]) {
+                [locManager setPurpose:purpose];
             }
         }
     }
-    return _locationManager;
+    return locManager;
 }
 
 
 - (void)locationManager:(CLLocationManager *)manager
                didVisit:(CLVisit *)visit{
  
-    NSLog(@"[DEBUG] latitude as number: %@", [NSNumber numberWithDouble:visit.coordinate.latitude]);
-    NSLog(@"[DEBUG] longitude as number: %@", [NSNumber numberWithDouble:visit.coordinate.longitude]);
-    NSLog(@"[DEBUG] horizontalAccuracy as number: %@", [NSNumber numberWithDouble:visit.horizontalAccuracy]);
+    if(_debug){
+        NSLog(@"[DEBUG] latitude as number: %@", [NSNumber numberWithDouble:visit.coordinate.latitude]);
+        NSLog(@"[DEBUG] longitude as number: %@", [NSNumber numberWithDouble:visit.coordinate.longitude]);
+        NSLog(@"[DEBUG] horizontalAccuracy as number: %@", [NSNumber numberWithDouble:visit.horizontalAccuracy]);
+    }
     
     NSMutableDictionary *data = [NSMutableDictionary dictionaryWithObjectsAndKeys:
                                  [NSNumber numberWithDouble:visit.coordinate.latitude],@"latitude",
@@ -187,13 +198,18 @@
                                  [NSNumber numberWithDouble:visit.horizontalAccuracy],@"horizontalAccuracy",
                                  NUMBOOL(YES),@"success",
                                  nil];
+    
     if(visit.arrivalDate !=nil){
-        NSLog(@"[DEBUG] arrivalDate is %@",visit.arrivalDate);
+        if(_debug){
+            NSLog(@"[DEBUG] arrivalDate is %@",visit.arrivalDate);
+        }
         [data setObject:[NSNumber numberWithLongLong:(long long)([visit.arrivalDate timeIntervalSince1970] * 1000)] forKey:@"arrivalDate"];
     }
 
     if(visit.departureDate !=nil){
-        NSLog(@"[DEBUG] departureDate is %@",visit.departureDate);
+        if(_debug){
+            NSLog(@"[DEBUG] departureDate is %@",visit.departureDate);
+        }
         [data setObject:[NSNumber numberWithLongLong:(long long)([visit.departureDate timeIntervalSince1970] * 1000)] forKey:@"departureDate"];
     }
     
