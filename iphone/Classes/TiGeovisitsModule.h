@@ -15,6 +15,8 @@
     @private
     bool _isSupported;
     bool _debug;
+    bool _runOnPermissionAdded;
+    bool _authorizedStatus;
 }
 
 @property (nonatomic, strong) CLLocationManager * locManager;
