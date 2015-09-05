@@ -46,23 +46,16 @@
     _isSupported = [TiUtils isIOS8OrGreater];
     _authorizedStatus = [self authorized];
     
-    if(_isSupported)
-    {
-        if([[NSBundle mainBundle] objectForInfoDictionaryKey:@"NSLocationAlwaysUsageDescription"])
-        {
-            if ([[[TiApp app] launchOptions] objectForKey:UIApplicationLaunchOptionsLocationKey])
-            {
+    if(_isSupported){
+        if([[NSBundle mainBundle] objectForInfoDictionaryKey:@"NSLocationAlwaysUsageDescription"]){
+            if ([[[TiApp app] launchOptions] objectForKey:UIApplicationLaunchOptionsLocationKey]){
                 [self startMonitoring:nil];
             }
-        }
-        else
-        {
+        }else{
             NSLog(@"[ERROR] NSLocationAlwaysUsageDescription in our tiapp.xml is required");
             _isSupported = NO;
         }
-    }
-    else
-    {
+    }else{
          NSLog(@"[ERROR] iOS 8 or greater required");
     }
     
@@ -113,14 +106,10 @@
 
 - (void)requestPermission
 {
-    if (locManager!=nil)
-    {
-        if([[NSBundle mainBundle] objectForInfoDictionaryKey:@"NSLocationAlwaysUsageDescription"])
-        {
+    if (locManager!=nil){
+        if([[NSBundle mainBundle] objectForInfoDictionaryKey:@"NSLocationAlwaysUsageDescription"]){
             [locManager requestAlwaysAuthorization];
-        }
-        else
-        {
+        }else{
             NSLog(@"[ERROR] The keys NSLocationAlwaysUsageDescription are not defined in your tiapp.xml.  Starting with iOS8 this is required.");
         }
     }
@@ -128,8 +117,7 @@
 
 -(void) postError:(NSString*)category withMessage:(NSString*) message
 {
-    if ([self _hasListeners:@"errored"])
-    {
+    if ([self _hasListeners:@"errored"]){
         NSDictionary *errEvent = [NSDictionary dictionaryWithObjectsAndKeys:NUMBOOL(NO),@"success",
                                     category,@"category",
                                     message,@"message",
@@ -143,20 +131,17 @@
     //We need to be on the UI thread, or the Change event wont fire
     ENSURE_UI_THREAD(startMonitoring,args);
     
-    if(_debug)
-    {
+    if(_debug){
         NSLog(@"[DEBUG] startMonitoring");
     }
     
-    if(_isSupported == NO)
-    {
+    if(_isSupported == NO){
         NSLog(@"[ERROR] is not supported");
         [self postError:@"compatibility" withMessage:@"Visits not supported on this device"];
         return;
     }
 
-    if ([CLLocationManager locationServicesEnabled]== NO)
-    {
+    if ([CLLocationManager locationServicesEnabled]== NO){
         NSLog(@"[ERROR] Location Services not enabled");
         [self postError:@"permissions" withMessage:@"Location Services not enabled"];
         return;
@@ -164,10 +149,8 @@
     
     _authorizedStatus = [self authorized];
     
-    if(_authorizedStatus == NO)
-    {
-        if(_debug)
-        {
+    if(_authorizedStatus == NO){
+        if(_debug){
             NSLog(@"[DEBUG] requesting permission");
         }
         
@@ -179,8 +162,7 @@
     
     [[self locationManager] startMonitoringVisits];
   
-    if ([self _hasListeners:@"started"])
-    {
+    if ([self _hasListeners:@"started"]){
         NSDictionary *startEvent = [NSDictionary dictionaryWithObjectsAndKeys:NUMBOOL(YES),@"success",nil];
         [self fireEvent:@"started" withObject:startEvent];
     }
@@ -191,15 +173,13 @@
 {
     ENSURE_UI_THREAD(stopMonitoring,args);
   
-    if(_debug)
-    {
+    if(_debug){
         NSLog(@"[DEBUG] stopMonitoring");
     }
     
     [[self locationManager] stopMonitoringVisits];
     
-    if ([self _hasListeners:@"stopped"])
-    {
+    if ([self _hasListeners:@"stopped"]){
         NSDictionary *event = [NSDictionary dictionaryWithObjectsAndKeys:
                                NUMBOOL(YES),@"success",nil];
         
@@ -210,30 +190,22 @@
 
 -(CLLocationManager*)locationManager
 {
-    if (locManager!=nil)
-    {
+    if (locManager!=nil){
         return locManager;
     }
     
-    if (locManager == nil)
-    {
+    if (locManager == nil){
         locManager = [[CLLocationManager alloc] init];
         locManager.delegate = self;
         locManager.pausesLocationUpdatesAutomatically = NO;
         
-        if([self authorized] == NO)
-        {
+        if([self authorized] == NO){
             [self requestPermission];
         }
-        
-        NSString * purpose = [TiUtils stringValue:[self valueForUndefinedKey:@"purpose"]];
-        if(purpose!=nil)
-        {
-            #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-            if ([locManager respondsToSelector:@selector(setPurpose)])
-            {
-                [locManager setPurpose:purpose];
-            }
+        if([TiUtils isIOS9OrGreater]){
+#if IS_XCODE_7
+            locManager.allowsBackgroundLocationUpdates = YES;
+#endif
         }
     }
     return locManager;
@@ -243,51 +215,48 @@
 - (void)locationManager:(CLLocationManager *)manager
                didVisit:(CLVisit *)visit{
  
-    if(_debug)
-    {
+    if(_debug){
         NSLog(@"[DEBUG] latitude as number: %@", [NSNumber numberWithDouble:visit.coordinate.latitude]);
         NSLog(@"[DEBUG] longitude as number: %@", [NSNumber numberWithDouble:visit.coordinate.longitude]);
         NSLog(@"[DEBUG] horizontalAccuracy as number: %@", [NSNumber numberWithDouble:visit.horizontalAccuracy]);
     }
+  
+    NSMutableDictionary *coords = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+                                   [NSNumber numberWithDouble:visit.coordinate.latitude],@"latitude",
+                                   [NSNumber numberWithDouble:visit.coordinate.longitude],@"longitude",
+                                   [NSNumber numberWithDouble:visit.horizontalAccuracy],@"horizontalAccuracy",
+                                   NUMBOOL(YES),@"success",
+                                   nil];
     
     NSMutableDictionary *data = [NSMutableDictionary dictionaryWithObjectsAndKeys:
-                                 [NSNumber numberWithDouble:visit.coordinate.latitude],@"latitude",
-                                 [NSNumber numberWithDouble:visit.coordinate.longitude],@"longitude",
-                                 [NSNumber numberWithDouble:visit.horizontalAccuracy],@"horizontalAccuracy",
+                                 coords,@"coords",
                                  NUMBOOL(YES),@"success",
                                  nil];
     
-    if(visit.arrivalDate != nil)
-    {
-        if(_debug)
-        {
+    if(visit.arrivalDate != nil){
+        if(_debug){
             NSLog(@"[DEBUG] arrivalDate is %@",visit.arrivalDate);
         }
 
         NSNumber * arrival = [NSNumber numberWithLongLong:(long long)([visit.arrivalDate timeIntervalSince1970] * 1000)];
-        if([arrival doubleValue] > 1.0)
-        {
+        if([arrival doubleValue] > 1.0){
             [data setObject:arrival forKey:@"arrivalDate"];
         }
         
     }
 
-    if(visit.departureDate != nil)
-    {
-        if(_debug)
-        {
+    if(visit.departureDate != nil){
+        if(_debug){
             NSLog(@"[DEBUG] departureDate is %@",visit.departureDate);
         }
         
         NSNumber * departure = [NSNumber numberWithLongLong:(long long)([visit.departureDate timeIntervalSince1970] * 1000)];
-        if([departure doubleValue] > 1.0)
-        {
+        if([departure doubleValue] > 1.0){
             [data setObject:departure forKey:@"departureDate"];
         }
     }
     
-    if ([self _hasListeners:@"visited"])
-    {
+    if ([self _hasListeners:@"visited"]){
         [self fireEvent:@"visited" withObject:data];
     }
     
@@ -300,37 +269,29 @@
 
 - (void)locationManager:(CLLocationManager *)manager didChangeAuthorizationStatus:(CLAuthorizationStatus)status
 {
-    if(_authorizedStatus == YES)
-    {
-        if(_debug)
-        {
+    if(_authorizedStatus == YES){
+        if(_debug){
             NSLog(@"[DEBUG] already authorized");
         }
         return;
     }
     
-    if ([self _hasListeners:@"authorized"])
-    {
+    if ([self _hasListeners:@"authorized"]){
         NSDictionary *eventOk = [NSDictionary dictionaryWithObjectsAndKeys:
                                          NUMBOOL((status == kCLAuthorizationStatusAuthorizedAlways ||
                                                   status == kCLAuthorizationStatusAuthorized)),@"success",nil];
         [self fireEvent:@"authorized" withObject:eventOk];
     }
     
-    if (status == kCLAuthorizationStatusAuthorizedAlways || status == kCLAuthorizationStatusAuthorized)
-    {
-        if(_runOnPermissionAdded)
-        {
-            if(_debug)
-            {
+    if(status == kCLAuthorizationStatusAuthorizedAlways || status == kCLAuthorizationStatusAuthorized){
+        if(_runOnPermissionAdded){
+            if(_debug){
                 NSLog(@"[DEBUG] running startMonitoringVisits now we have correct permissions");
             }
             
             [self startMonitoring:nil];
         }
-    }
-    else
-    {
+    }else{
         NSLog(@"[ERROR] does not have correct permissions");
         [self postError:@"permissions" withMessage:@"Does not have correct permissions"];
     }

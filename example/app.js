@@ -66,7 +66,7 @@ visits.addEventListener('visited',function(e){
 		console.log("Visits fired " + JSON.stringify(e));
 		places.push({
 			phase:'visited',
-			message:'Visited: Lat:' + e.latitude + ' lon:' + e.longitude,
+			message:'Visited: Lat:' + e.coords.latitude + ' lon:' + e.coords.longitude,
 			raw:e
 		});	
 		helpers.savePlaces();	

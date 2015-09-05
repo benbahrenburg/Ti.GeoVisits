@@ -178,9 +178,9 @@ var visits = require('ti.geovisits');
 
 visits.addEventListener('visited',function(e){
 	console.log(JSON.stringify(e));
-	console.log("latitude:" + e.latitude);
-	console.log("longitude:" + e.longitude);
-	console.log("horizontalAccuracy:" + e.horizontalAccuracy);
+	console.log("latitude:" + e.coords.latitude);
+	console.log("longitude:" + e.coords.longitude);
+	console.log("horizontalAccuracy:" + e.coords.horizontalAccuracy);
 	if(e.hasOwnProperty("arrivalDate")){
 		console.log("arrivalDate:" + String.formatDate(new Date(e.arrivalDate),"long"));
 	}
